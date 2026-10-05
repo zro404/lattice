@@ -1,7 +1,10 @@
 package config
 
 import (
+	"bytes"
+	"errors"
 	"os"
+	"time"
 
 	"github.com/zro404/lattice/internal/logger"
 	"gopkg.in/yaml.v3"
@@ -9,6 +12,8 @@ import (
 
 type YamlConfig struct {
 	Version int `yaml:"version"`
+
+	TickInterval time.Duration `yaml:"tick_interval"`
 
 	Databases []struct {
 		Name string `yaml:"name"`
@@ -20,17 +25,56 @@ type YamlConfig struct {
 	} `yaml:"logs"`
 }
 
-func LoadFile(path string) *YamlConfig {
+func configError(msg string) error {
+	return errors.New("Config Error: " + msg)
+}
+
+func (c *YamlConfig) Validate() error {
+	if c.Version <= 0 {
+		return configError("Invalid config version")
+	}
+
+	if c.TickInterval < time.Second {
+		return configError("Invalid tick_interval (must be >= 1s) [format: 1h5m30s]")
+	}
+
+	for _, db := range c.Databases {
+		if db.Name == "" {
+			return configError("Invalid database name")
+		}
+	}
+
+	for _, log := range c.Logs {
+		if log.Name == "" {
+			return configError("Invalid log name")
+		}
+
+		if len(log.Paths) == 0 {
+			return configError("Log paths cannot be empty")
+		}
+	}
+
+	return nil
+}
+
+func LoadFile(path string) (*YamlConfig, error) {
 	stream, err := os.ReadFile(path)
 	if err != nil {
-		logger.Fatalf("Error reading config file: %s", err.Error())
+		return nil, configError("Error reading config file: " + err.Error())
 	}
 
 	var config YamlConfig
 
-	if err := yaml.Unmarshal(stream, &config); err != nil {
-		logger.Fatalf("Config Error: %s", err.Error())
+	decoder := yaml.NewDecoder(bytes.NewReader(stream))
+	decoder.KnownFields(true)
+
+	if err := decoder.Decode(&config); err != nil {
+		return nil, configError(err.Error())
 	}
 
-	return &config
+	if err := config.Validate(); err != nil {
+		logger.Fatalf("%s", err.Error())
+	}
+
+	return &config, nil
 }
