@@ -10,26 +10,30 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type YamlConfig struct {
+type Config struct {
 	Version int `yaml:"version"`
 
 	TickInterval time.Duration `yaml:"tick_interval"`
 
-	Databases []struct {
-		Name string `yaml:"name"`
-	} `yaml:"databases"`
+	Databases []Database `yaml:"databases"`
 
-	Logs []struct {
-		Name  string   `yaml:"name"`
-		Paths []string `yaml:"paths"`
-	} `yaml:"logs"`
+	Logs []Log `yaml:"logs"`
+}
+
+type Database struct {
+	Name string `yaml:"name"`
+}
+
+type Log struct {
+	Name  string   `yaml:"name"`
+	Paths []string `yaml:"paths"`
 }
 
 func configError(msg string) error {
 	return errors.New("Config Error: " + msg)
 }
 
-func (c *YamlConfig) Validate() error {
+func (c *Config) Validate() error {
 	if c.Version <= 0 {
 		return configError("Invalid config version")
 	}
@@ -57,13 +61,13 @@ func (c *YamlConfig) Validate() error {
 	return nil
 }
 
-func LoadFile(path string) (*YamlConfig, error) {
+func LoadFile(path string) (*Config, error) {
 	stream, err := os.ReadFile(path)
 	if err != nil {
 		return nil, configError("Error reading config file: " + err.Error())
 	}
 
-	var config YamlConfig
+	var config Config
 
 	decoder := yaml.NewDecoder(bytes.NewReader(stream))
 	decoder.KnownFields(true)

@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -38,9 +39,10 @@ func Printf(format string, v ...any) {
 }
 
 func Fatal(v ...any) {
-	l.Fatal(v...)
+	args := append([]any{"Error:"}, v...)
+	l.Fatal(args...)
 }
 
 func Fatalf(format string, v ...any) {
-	l.Fatalf(format, v...)
+	l.Fatalf("Error: %s", fmt.Sprintf(format, v...))
 }
